@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ar-workspace
+  labels:
+    app: autoresearch
+spec:
+  restartPolicy: Always
+  containers:
+    - name: workspace
+      image: ubuntu:22.04
+      command: ["sleep", "infinity"]
+      volumeMounts:
+        - name: shared
+          mountPath: /workspace/autoresearch-swarm
+          subPath: autoresearch-swarm
+        - name: shared
+          mountPath: /workspace/autoresearch-cache
+          subPath: autoresearch-cache
+  volumes:
+    - name: shared
+      persistentVolumeClaim:
+        claimName: YOUR_PVC_NAME  # <-- CHANGE THIS

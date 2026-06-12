@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: JOB_NAME_PLACEHOLDER
+  namespace: default
+  labels:
+    app: autoresearch
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 120
+  template:
+    spec:
+      restartPolicy: Never
+      # --- UNCOMMENT AND EDIT FOR YOUR CLUSTER ---
+      # nodeSelector:
+      #   node.kubernetes.io/instance-type: p5en.48xlarge
+      # tolerations:
+      #   - key: "your-taint-key"
+      #     operator: "Equal"
+      #     value: "True"
+      #     effect: "NoSchedule"
+      containers:
+        - name: train
+          image: pytorch/pytorch:2.9.1-cuda12.8-cudnn9-devel
+          command: ["bash", "-c"]
+          args:
+            - |
+              set -ex
+              curl -LsSf https://astral.sh/uv/install.sh | sh
+              export PATH="$HOME/.local/bin:$PATH"
+              cd /workspace/autoresearch-swarm
+              uv sync
+              uv run train.py > run.log 2>&1
+              echo "EXIT_CODE=$?" >> run.log
+          env:
+            - name: CUDA_VISIBLE_DEVICES
+              value: "0"
+            - name: PYTORCH_CUDA_ALLOC_CONF
+              value: "expandable_segments:True"
+            - name: HOME
+              value: /tmp
+            - name: XDG_CACHE_HOME
+              value: /workspace/autoresearch-cache
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+            requests:
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: shared
+              mountPath: /workspace/autoresearch-swarm
+              subPath: autoresearch-swarm
+            - name: shared
+              mountPath: /workspace/autoresearch-cache
+              subPath: autoresearch-cache
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        - name: shared
+          persistentVolumeClaim:
+            claimName: YOUR_PVC_NAME  # <-- CHANGE THIS
+        - name: dshm
+          emptyDir:
+            medium: Memory

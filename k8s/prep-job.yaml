@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ar-prep
+  namespace: default
+  labels:
+    app: autoresearch
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 120
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: prep
+          image: pytorch/pytorch:2.9.1-cuda12.8-cudnn9-devel
+          command: ["bash", "-c"]
+          args:
+            - |
+              set -ex
+              curl -LsSf https://astral.sh/uv/install.sh | sh
+              export PATH="$HOME/.local/bin:$PATH"
+              cd /workspace/autoresearch-swarm
+              uv sync
+              uv run prepare.py
+          env:
+            - name: HOME
+              value: /tmp
+            - name: XDG_CACHE_HOME
+              value: /workspace/autoresearch-cache
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+            requests:
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: shared
+              mountPath: /workspace/autoresearch-swarm
+              subPath: autoresearch-swarm
+            - name: shared
+              mountPath: /workspace/autoresearch-cache
+              subPath: autoresearch-cache
+      volumes:
+        - name: shared
+          persistentVolumeClaim:
+            claimName: YOUR_PVC_NAME  # <-- CHANGE THIS
